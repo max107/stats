@@ -1,15 +1,8 @@
-if (!Date.now) {
-    Date.now = function() {
-        return new Date().getTime();
-    }
-}
-
 var Stat = function() {
     return this.init();
 };
 
 Stat.prototype = {
-    timestamp: null,
     fingerprint: null,
 
     init: function() {
@@ -17,8 +10,6 @@ Stat.prototype = {
             canvas: true,
             screen_resolution: true
         }).get();
-
-        this.timestamp = Math.floor(Date.now() / 1000);
 
         var data = {
             screen: {
@@ -28,10 +19,10 @@ Stat.prototype = {
                 height: window.screen.height,
                 colorDepth: window.screen.colorDepth,
                 pixelDepth: window.screen.pixelDepth,
-                orientation: {
+                orientation: window.screen.orientation ? {
                     angle: window.screen.orientation.angle,
                     type: window.screen.orientation.type
-                }
+                } : {}
             },
             navigator: {
                 appCodeName: window.navigator.appCodeName,
@@ -59,7 +50,6 @@ Stat.prototype = {
                 protocol: window.location.protocol,
                 search: window.location.search
             },
-            timestamp: this.timestamp,
             fingerprint: this.fingerprint
         };
         this.ajax("http://localhost:8080", {

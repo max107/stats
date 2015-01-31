@@ -44,9 +44,9 @@ type Location struct {
 }
 
 type Stats struct {
-	Timestamp   int       `json:"timestamp"`
-	Screen      Screen    `json:"screen"`
-	Navigator   Navigator `json:"navigator"`
-	Location    Location  `json:"location"`
-	Fingerprint int       `json:"fingerprint"`
+	Timestamp   *Timestamp `bson:"timestamp"`
+	Screen      Screen     `json:"screen"`
+	Navigator   Navigator  `json:"navigator"`
+	Location    Location   `json:"location"`
+	Fingerprint int        `json:"fingerprint"`
 }
