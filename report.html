@@ -1,0 +1,31 @@
+<html>
+    <head>
+    <title>Report</title></head>
+<body>
+    <h1>Sites</h1>
+    {% for site in sites %}
+        {{ site }}
+    {% endfor %}
+
+    {% for stat in stats %}
+    <ul>
+        <li>Fingerprint: {{ stat.Fingerprint }}</li>
+        <li>Timestamp: {{ stat.Timestamp }}</li>
+        <li>Location:
+            <ul>
+                <li>Hash: {{ stat.Location.Hash }}</li>
+                <li>Host: {{ stat.Location.Host }}</li>
+                <li>Hostname: {{ stat.Location.Hostname }}</li>
+                <li>Href: {{ stat.Location.Href }}</li>
+                <li>Origin: {{ stat.Location.Origin }}</li>
+                <li>Pathname: {{ stat.Location.Pathname }}</li>
+                <li>Port: {{ stat.Location.Port }}</li>
+                <li>Protocol: {{ stat.Location.Protocol }}</li>
+                <li>Search: {{ stat.Location.Search }}</li>
+            </ul>
+        </li>
+    </ul>
+    <hr>
+    {% endfor %}
+</body>
+</html>
