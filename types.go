@@ -44,9 +44,19 @@ type Location struct {
 }
 
 type Stats struct {
-	Timestamp   *Timestamp `bson:"timestamp"`
-	Screen      Screen     `json:"screen"`
-	Navigator   Navigator  `json:"navigator"`
-	Location    Location   `json:"location"`
-	Fingerprint int        `json:"fingerprint"`
+	Timestamp   Timestamp `bson:"timestamp"`
+	Screen      Screen    `json:"screen"`
+	Host        string    `json:"host"`
+	Navigator   Navigator `json:"navigator"`
+	Location    Location  `json:"location"`
+	Fingerprint int       `json:"fingerprint"`
+}
+
+type StatsMonthResult struct {
+	Id   map[string]int `bson:"_id"`
+	Hits int            `bson:"hits"`
+}
+
+func (self *StatsMonthResult) Day() int {
+	return self.Id["day_of_month"]
 }

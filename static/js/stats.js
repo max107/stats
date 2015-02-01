@@ -12,6 +12,7 @@ Stat.prototype = {
         }).get();
 
         var data = {
+            host: window.location.host,
             screen: {
                 availWidth: window.screen.availWidth,
                 availHeight: window.screen.availHeight,

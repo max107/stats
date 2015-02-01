@@ -3,30 +3,70 @@
     <title>Report</title></head>
     <script type="text/javascript" src="http://localhost:8080/"></script>
 <body>
-    <h1>Sites</h1>
-    {% for site in sites %}
-        {{ site }}
-    {% endfor %}
+    <h1>Report</h1>
 
-    {% for stat in stats %}
-    <ul>
-        <li>Fingerprint: {{ stat.Fingerprint }}</li>
-        <li>Timestamp: {{ stat.Timestamp }}</li>
-        <li>Location:
-            <ul>
-                <li>Hash: {{ stat.Location.Hash }}</li>
-                <li>Host: {{ stat.Location.Host }}</li>
-                <li>Hostname: {{ stat.Location.Hostname }}</li>
-                <li>Href: {{ stat.Location.Href }}</li>
-                <li>Origin: {{ stat.Location.Origin }}</li>
-                <li>Pathname: {{ stat.Location.Pathname }}</li>
-                <li>Port: {{ stat.Location.Port }}</li>
-                <li>Protocol: {{ stat.Location.Protocol }}</li>
-                <li>Search: {{ stat.Location.Search }}</li>
-            </ul>
-        </li>
-    </ul>
-    <hr>
-    {% endfor %}
+    {% macro get_hits(data, needDay) %}
+        {% for day, hits in data %}
+            {% if day == needDay %}
+                {{ hits }}
+            {% endif %}
+        {% endfor %}
+    {% endmacro %}
+
+    <div id="main" style="height:300px;"></div>
+
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/echarts/2.1.9/echarts-all.js"></script>
+
+    <script type="text/javascript">
+        var myChart = echarts.init(document.getElementById('main'));
+        myChart.setOption({
+            tooltip : {
+                trigger: 'axis'
+            },
+            legend: {
+                data:['Hits']
+            },
+            toolbox: {
+                show : true,
+                feature : {
+                    mark : {show: false},
+                    dataView : {show: false, readOnly: false},
+                    magicType : {show: true, type: ['line', 'bar']},
+                    restore : {show: false},
+                    saveAsImage : {show: true}
+                }
+            },
+            calculable : true,
+            xAxis : [
+                {
+                    type : 'category',
+                    data : [
+                    {% for day in chartKeys %}
+                        '{{ day }}'{% if not forloop.Last %},{% endif %}
+                    {% endfor %}
+                    ]
+                }
+            ],
+            yAxis : [
+                {
+                    type : 'value',
+                    splitArea : {show : true}
+                }
+            ],
+            series : [
+                {
+                    itemStyle: {normal: {areaStyle: {type: 'default'}}},
+                    smooth: true,
+                    name:'1',
+                    type:'bar',
+                    data: [
+                    {% for day in chartKeys %}
+                        {{ get_hits(chartData, day) }}{% if not forloop.Last %},{% endif %}
+                    {% endfor %}
+                    ]
+                }
+            ]
+        });
+    </script>
 </body>
 </html>

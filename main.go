@@ -1,5 +1,7 @@
 package main
 
+// WARNING! Remember, dont change day_of_month.
+
 import (
 	"github.com/flosch/pongo2"
 	"github.com/gin-gonic/gin"
@@ -9,11 +11,14 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"sort"
 	"time"
 )
 
 var session *mgo.Session
 
+const MONGO_DB = "stats"
+const MONGO_COLLECTION = "stats2"
 const SERVER_INFO = "StatsServer"
 
 type BasicServerHeader struct {
@@ -45,13 +50,10 @@ func CORSMiddleware() gin.HandlerFunc {
 	}
 }
 
-func InsertRecord(rec Stats) {
-	c := session.DB("stats").C("stats")
-	rec.Timestamp = new(Timestamp)
-	err := c.Insert(&rec)
-	if err != nil {
-		log.Fatal(err)
-	}
+func InsertRecord(rec Stats) error {
+	c := session.DB(MONGO_DB).C(MONGO_COLLECTION)
+	rec.Timestamp = Timestamp(time.Now().UTC())
+	return c.Insert(&rec)
 }
 
 func Render(template string, context pongo2.Context) (string, error) {
@@ -66,16 +68,55 @@ func Render(template string, context pongo2.Context) (string, error) {
 	return out, nil
 }
 
+func FindByMonth(host string, gte, lte time.Time) ([]StatsMonthResult, error) {
+	var results []StatsMonthResult
+
+	now.FirstDayMonday = true
+	match := bson.M{
+		"$match": bson.M{
+			"host": host,
+			"timestamp": bson.M{
+				"$gte": gte,
+				"$lte": lte,
+			},
+		},
+	}
+	project := bson.M{
+		"$project": bson.M{
+			"_id": 0,
+			"day_of_month": bson.M{
+				"$dayOfMonth": "$timestamp",
+			},
+		},
+	}
+	group := bson.M{
+		"$group": bson.M{
+			"_id": bson.M{
+				"day_of_month": "$day_of_month",
+			},
+			"hits": bson.M{"$sum": 1},
+		},
+	}
+	operations := []bson.M{match, project, group}
+	pipe := session.DB(MONGO_DB).C(MONGO_COLLECTION).Pipe(operations)
+	err := pipe.All(&results)
+	// err = session.DB("stats").C("stats").Find().Sort("timestamp").All(&stats)
+	if err != nil {
+		return results, err
+	}
+
+	return results, nil
+}
+
 func main() {
-	log.Printf("%v", time.Now().Local())
 	sites := make(map[string]bool)
-	sites["localhost:8000"] = true
+	sites["localhost:8080"] = true
 
 	var err error
 	dialInfo := &mgo.DialInfo{
 		Addrs:    []string{"localhost"},
 		Timeout:  10 * time.Second,
-		Database: "stats",
+		Database: MONGO_DB,
 	}
 	session, err = mgo.DialWithInfo(dialInfo)
 	if err != nil {
@@ -108,58 +149,65 @@ func main() {
 		var s Stats
 		c.Bind(&s)
 
-		// log.Printf("%s", s.Location.Host)
-		// if _, ok := sites[s.Location.Host]; ok {
-		InsertRecord(s)
-		c.JSON(200, gin.H{"status": true})
-		// } else {
-		// c.JSON(200, gin.H{"error": "unknown site"})
-		// }
+		if _, ok := sites[s.Location.Host]; ok {
+			err := InsertRecord(s)
+			if err != nil {
+				panic(err)
+			}
+			c.JSON(200, gin.H{"status": true})
+		} else {
+			c.JSON(200, gin.H{"error": "unknown site"})
+		}
 	})
 
 	r.GET("/report", func(c *gin.Context) {
-		var stats []Stats
-		// err = session.DB("stats").C("stats").Find(nil).All(&stats)
-		t, _ := now.Parse("2014-01-01")
-		log.Printf("%s %s", t, now.EndOfMonth())
-		now.FirstDayMonday = true
-		match := bson.M{
-			"$match": bson.M{
-				"timestamp": bson.M{
-					"$gte": t, // now.BeginningOfMonth()
-					"$lte": now.EndOfMonth(),
-				},
-			},
-		}
-		project := bson.M{
-			"$project": bson.M{
-				"_id": 0,
-				"day_of_month": bson.M{
-					"$dayOfMonth": "$timestamp",
-				},
-			},
-		}
-		group := bson.M{
-			"$group": bson.M{
-				"_id": bson.M{
-					"day_of_month": "$day_of_month",
-				},
-				"hits": bson.M{"$sum": 1},
-			},
-		}
-		operations := []bson.M{match, project, group}
-		pipe := session.DB("stats").C("stats").Pipe(operations)
-		err := pipe.All(&stats)
-		// err = session.DB("stats").C("stats").Find().Sort("timestamp").All(&stats)
+		out, err := Render("templates/sites.html", pongo2.Context{
+			"sites": sites,
+		})
 		if err != nil {
 			panic(err)
 		}
 
-		log.Printf("%v", len(stats))
+		c.Data(200, "text/html", []byte(out))
+	})
+
+	r.GET("/report/:host", func(c *gin.Context) {
+		host := c.Params.ByName("host")
+		if _, ok := sites[host]; !ok {
+			c.String(404, "Page not found")
+			return
+		}
+		results, err := FindByMonth(host, now.BeginningOfMonth().UTC(), now.EndOfMonth().UTC())
+		if err != nil {
+			panic(err)
+		}
+
+		// TODO refact
+		var chartData = make(map[int]int, now.EndOfMonth().Day())
+		for i := 1; i < now.EndOfMonth().Day()+1; i++ {
+			var complete = false
+			for _, r := range results {
+				if i == r.Day() {
+					chartData[i] = r.Hits
+					complete = true
+					break
+				}
+			}
+			if complete == false {
+				chartData[i] = 0
+			}
+		}
+
+		var keys []int
+		for k := range chartData {
+			keys = append(keys, k)
+		}
+		sort.Ints(keys)
+		// TODO refact
 
 		out, err := Render("templates/report.html", pongo2.Context{
-			"sites": sites,
-			"stats": stats,
+			"chartData": chartData,
+			"chartKeys": keys,
 		})
 		if err != nil {
 			log.Printf("%v", err)

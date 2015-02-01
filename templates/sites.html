@@ -1,0 +1,10 @@
+<html>
+    <head>
+    <title>Report</title></head>
+<body>
+    <h1>Sites</h1>
+    {% for site in sites %}
+        <a href="/report/{{ site }}">{{ site }}</a>
+    {% endfor %}
+</body>
+</html>
