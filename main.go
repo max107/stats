@@ -110,7 +110,7 @@ func FindByMonth(host string, gte, lte time.Time) ([]StatsMonthResult, error) {
 
 func main() {
 	sites := make(map[string]bool)
-	sites["localhost:8080"] = true
+	sites["studio107.ru"] = true
 
 	var err error
 	dialInfo := &mgo.DialInfo{
